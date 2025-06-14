@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Mail, Phone, FileText, User } from 'lucide-react';
+import { Calendar, Mail, Phone, FileText, User, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -18,6 +18,7 @@ const AdminApplications = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [jobFilter, setJobFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -36,6 +37,8 @@ const AdminApplications = () => {
 
   const loadApplicationsAndJobs = async () => {
     try {
+      setLoading(true);
+      
       // Load applications with job details
       const { data: applicationsData, error: appsError } = await supabase
         .from('applications')
@@ -75,6 +78,8 @@ const AdminApplications = () => {
         description: 'Failed to load applications',
         variant: 'destructive'
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -177,73 +182,82 @@ const AdminApplications = () => {
         </div>
 
         {/* Applications Grid */}
-        <div className="space-y-4">
-          {filteredApplications.map(application => (
-            <Card key={application.id}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                      <h3 className="text-lg font-semibold">{application.fullName}</h3>
-                      <Badge variant={getStatusColor(application.status)}>
-                        {application.status}
-                      </Badge>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span>{application.jobTitle}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4" />
-                        <span>{application.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" />
-                        <span>{application.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>Applied {new Date(application.appliedAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Select
-                      value={application.status}
-                      onValueChange={(value) => handleStatusUpdate(application.id, value)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="reviewed">Reviewed</SelectItem>
-                        <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                        <SelectItem value="hired">Hired</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    
-                    <Button
-                      variant="outline"
-                      onClick={() => handleViewApplication(application)}
-                    >
-                      View Details
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredApplications.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No applications found matching your criteria.</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">Loading applications...</span>
           </div>
+        ) : (
+          <>
+            <div className="space-y-4">
+              {filteredApplications.map(application => (
+                <Card key={application.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-4">
+                          <h3 className="text-lg font-semibold">{application.fullName}</h3>
+                          <Badge variant={getStatusColor(application.status)}>
+                            {application.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            <span>{application.jobTitle}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4" />
+                            <span>{application.email}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4" />
+                            <span>{application.phone}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            <span>Applied {new Date(application.appliedAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Select
+                          value={application.status}
+                          onValueChange={(value) => handleStatusUpdate(application.id, value)}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="reviewed">Reviewed</SelectItem>
+                            <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                            <SelectItem value="hired">Hired</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        <Button
+                          variant="outline"
+                          onClick={() => handleViewApplication(application)}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {filteredApplications.length === 0 && !loading && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No applications found matching your criteria.</p>
+              </div>
+            )}
+          </>
         )}
 
         {/* Application Detail Modal */}

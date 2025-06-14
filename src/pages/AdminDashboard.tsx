@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Briefcase, FileText, TrendingUp } from 'lucide-react';
+import { Users, Briefcase, FileText, TrendingUp, Loader } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -145,77 +145,84 @@ const AdminDashboard = () => {
           <p className="text-muted-foreground">Welcome to the admin portal</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {statCards.map((stat, index) => (
-            <Card key={index}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {stat.title}
-                </CardTitle>
-                <div className={`p-2 rounded-md ${stat.bgColor}`}>
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">Loading dashboard...</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {statCards.map((stat, index) => (
+              <Card key={index}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    {stat.title}
+                  </CardTitle>
+                  <div className={`p-2 rounded-md ${stat.bgColor}`}>
+                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stat.value}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {!loading && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading ? '...' : stat.value}
+                <div className="space-y-4">
+                  {recentActivities.length > 0 ? (
+                    recentActivities.slice(0, 3).map((activity, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <span className="text-sm">
+                          New application for {activity.jobs?.title || 'Unknown Job'}
+                        </span>
+                        <Badge variant="secondary">
+                          {new Date(activity.applied_at).toLocaleDateString()}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No recent activity</div>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {loading ? (
-                  <div className="text-sm text-muted-foreground">Loading recent activity...</div>
-                ) : recentActivities.length > 0 ? (
-                  recentActivities.slice(0, 3).map((activity, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <span className="text-sm">
-                        New application for {activity.jobs?.title || 'Unknown Job'}
-                      </span>
-                      <Badge variant="secondary">
-                        {new Date(activity.applied_at).toLocaleDateString()}
-                      </Badge>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-sm text-muted-foreground">No recent activity</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <button
-                  onClick={() => navigate('/admin/jobs')}
-                  className="w-full text-left p-3 rounded-md hover:bg-muted transition-colors"
-                >
-                  <div className="font-medium">Manage Jobs</div>
-                  <div className="text-sm text-muted-foreground">Create and edit job postings</div>
-                </button>
-                <button
-                  onClick={() => navigate('/admin/applications')}
-                  className="w-full text-left p-3 rounded-md hover:bg-muted transition-colors"
-                >
-                  <div className="font-medium">Review Applications</div>
-                  <div className="text-sm text-muted-foreground">View and manage applications</div>
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => navigate('/admin/jobs')}
+                    className="w-full text-left p-3 rounded-md hover:bg-muted transition-colors"
+                  >
+                    <div className="font-medium">Manage Jobs</div>
+                    <div className="text-sm text-muted-foreground">Create and edit job postings</div>
+                  </button>
+                  <button
+                    onClick={() => navigate('/admin/applications')}
+                    className="w-full text-left p-3 rounded-md hover:bg-muted transition-colors"
+                  >
+                    <div className="font-medium">Review Applications</div>
+                    <div className="text-sm text-muted-foreground">View and manage applications</div>
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </Layout>
   );
