@@ -4,7 +4,7 @@ import JobCard from '@/components/JobCard';
 import ApplicationModal from '@/components/ApplicationModal';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search } from 'lucide-react';
+import { Search, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -17,6 +17,7 @@ const Jobs = () => {
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
   const [appliedJobs, setAppliedJobs] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   // Get unique departments and locations
@@ -36,6 +37,8 @@ const Jobs = () => {
 
   const loadJobs = async () => {
     try {
+      setLoading(true);
+      
       const { data: jobs, error } = await supabase
         .from('jobs')
         .select('*')
@@ -68,6 +71,8 @@ const Jobs = () => {
         description: 'Failed to load jobs',
         variant: 'destructive'
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -209,21 +214,30 @@ const Jobs = () => {
         </div>
 
         {/* Job Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredJobs.map(job => (
-            <JobCard
-              key={job.id}
-              job={job}
-              onApply={handleApply}
-              hasApplied={appliedJobs.includes(job.id)}
-            />
-          ))}
-        </div>
-
-        {filteredJobs.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No jobs found matching your criteria.</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">Loading jobs...</span>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredJobs.map(job => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  onApply={handleApply}
+                  hasApplied={appliedJobs.includes(job.id)}
+                />
+              ))}
+            </div>
+
+            {filteredJobs.length === 0 && !loading && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No jobs found matching your criteria.</p>
+              </div>
+            )}
+          </>
         )}
 
         <ApplicationModal
