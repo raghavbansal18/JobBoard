@@ -1,73 +1,231 @@
-# Welcome to your Lovable project
+# Job Board Application
 
-## Project info
+A comprehensive job board application built with React, TypeScript, and Supabase, featuring both applicant and admin functionality.
 
-**URL**: https://lovable.dev/projects/2f4f2ab4-2f8f-4850-b763-fb152116b5e9
+## 🚀 Features
 
-## How can I edit this code?
+### For Applicants
+- View available job listings with filters (search, department, location)
+- Apply for jobs with personal information and resume upload
+- Protection against duplicate applications
+- Daily application limits (max 5 jobs per 24 hours)
+- Application status tracking
 
-There are several ways of editing your application.
+### For Administrators
+- Secure admin portal with hardcoded authentication
+- Create and manage job postings
+- View and manage applications
+- Update application statuses
+- Dashboard with statistics
 
-**Use Lovable**
+## 🛠 Technologies Used
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/2f4f2ab4-2f8f-4850-b763-fb152116b5e9) and start prompting.
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **UI Components**: shadcn/ui
+- **Routing**: React Router DOM
+- **State Management**: React Hooks
+- **Backend**: Supabase (Database, Authentication, File Storage)
+- **Build Tool**: Vite
+- **Package Manager**: npm
 
-Changes made via Lovable will be committed automatically to this repo.
+## 📋 Prerequisites
 
-**Use your preferred IDE**
+- Node.js (v16 or higher)
+- npm or yarn
+- Supabase account and project
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🔧 Installation & Setup
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd job-board-app
+   ```
 
-Follow these steps:
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+3. **Set up Supabase**
+   - Create a new Supabase project at https://supabase.com
+   - Run the following SQL queries in your Supabase SQL editor:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+   ```sql
+   -- Create jobs table
+   CREATE TABLE jobs (
+     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+     title VARCHAR(255) NOT NULL,
+     department VARCHAR(255) NOT NULL,
+     location VARCHAR(255) NOT NULL,
+     description TEXT NOT NULL,
+     posting_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+     is_active BOOLEAN DEFAULT true,
+     max_applications INTEGER DEFAULT 5,
+     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+   );
 
-# Step 3: Install the necessary dependencies.
-npm i
+   -- Create applications table
+   CREATE TABLE applications (
+     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+     job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
+     full_name VARCHAR(255) NOT NULL,
+     email VARCHAR(255) NOT NULL,
+     phone VARCHAR(20) NOT NULL,
+     resume_url TEXT,
+     applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+     status VARCHAR(50) DEFAULT 'pending'
+   );
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+   -- Create indexes for better performance
+   CREATE INDEX idx_jobs_active ON jobs(is_active);
+   CREATE INDEX idx_applications_job_id ON applications(job_id);
+   CREATE INDEX idx_applications_email ON applications(email);
+   CREATE INDEX idx_applications_applied_at ON applications(applied_at);
+
+   -- Enable Row Level Security
+   ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE applications ENABLE ROW LEVEL SECURITY;
+
+   -- RLS policies for jobs (public read access)
+   CREATE POLICY "Jobs are viewable by everyone" ON jobs
+     FOR SELECT USING (is_active = true);
+
+   CREATE POLICY "Jobs can be inserted by authenticated users" ON jobs
+     FOR INSERT WITH CHECK (true);
+
+   CREATE POLICY "Jobs can be updated by authenticated users" ON jobs
+     FOR UPDATE USING (true);
+
+   -- RLS policies for applications
+   CREATE POLICY "Applications can be inserted by anyone" ON applications
+     FOR INSERT WITH CHECK (true);
+
+   CREATE POLICY "Applications are viewable by authenticated users" ON applications
+     FOR SELECT USING (true);
+   ```
+
+4. **Connect to Supabase in Lovable**
+   - Click the green Supabase button in the top right of your Lovable interface
+   - Follow the connection setup process
+
+5. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+   The application will be available at `http://localhost:8080`
+
+## 🔐 Admin Credentials
+
+Use these credentials to access the admin portal:
+
+- **Email**: `admin@jobboard.com`
+- **Password**: `admin123!`
+
+## 📁 Project Structure
+
+```
+src/
+├── components/
+│   ├── ui/                 # shadcn/ui components
+│   ├── Layout.tsx          # Main layout component
+│   ├── JobCard.tsx         # Job listing card
+│   └── ApplicationModal.tsx # Application form modal
+├── pages/
+│   ├── Jobs.tsx            # Job listings page (main page)
+│   ├── AdminLogin.tsx      # Admin authentication
+│   ├── AdminDashboard.tsx  # Admin dashboard
+│   ├── AdminJobs.tsx       # Job management
+│   └── AdminApplications.tsx # Application management
+├── hooks/
+│   └── use-toast.ts        # Toast notifications
+└── lib/
+    └── utils.ts            # Utility functions
 ```
 
-**Edit a file directly in GitHub**
+## 🎯 Business Rules
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Application Limits
+- **Per Job**: Maximum 5 applications allowed per job posting
+- **Per Applicant**: Maximum 5 job applications within 24 hours
+- **Duplicate Prevention**: One application per job per applicant
 
-**Use GitHub Codespaces**
+### Validation Rules
+- All contact information (name, email, phone) is required
+- Resume upload is mandatory
+- Valid email format required
+- Phone number format validation
+- File type restrictions: PDF, DOC, DOCX only
+- File size limit: 5MB maximum
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Admin Features
+- Job posting management (create, edit, activate/deactivate)
+- Application review and status updates
+- Dashboard with application statistics
+- Secure authentication with hardcoded credentials
 
-## What technologies are used for this project?
+## 🚀 Deployment
 
-This project is built with:
+To deploy this application:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+1. **Build the project**
+   ```bash
+   npm run build
+   ```
 
-## How can I deploy this project?
+2. **Deploy via Lovable**
+   - Click "Publish" in the Lovable interface
+   - Your app will be deployed with a Lovable subdomain
 
-Simply open [Lovable](https://lovable.dev/projects/2f4f2ab4-2f8f-4850-b763-fb152116b5e9) and click on Share -> Publish.
+3. **Custom Domain** (Premium feature)
+   - Go to Project > Settings > Domains
+   - Connect your custom domain
 
-## Can I connect a custom domain to my Lovable project?
+## 🔄 Development Workflow
 
-Yes, you can!
+1. **Local Development**
+   ```bash
+   npm run dev
+   ```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+2. **Type Checking**
+   ```bash
+   npm run type-check
+   ```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+3. **Linting**
+   ```bash
+   npm run lint
+   ```
+
+## 📝 API Integration
+
+Once Supabase is connected, the application will automatically:
+- Store job postings in the database
+- Handle file uploads for resumes
+- Manage application data
+- Implement real-time updates
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For support and questions:
+- Check the Lovable documentation: https://docs.lovable.dev/
+- Join the Lovable Discord community
+- Review the troubleshooting guide in the documentation
+
+---
+
+**Note**: This application requires Supabase integration for full functionality. Connect your Supabase project through the Lovable interface to enable database operations, file uploads, and authentication.
