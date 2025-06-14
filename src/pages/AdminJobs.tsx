@@ -45,11 +45,21 @@ const AdminJobs = () => {
     try {
       const { data, error } = await supabase
         .from('jobs')
-        .select('*')
+        .select(`
+          *,
+          applications:applications(count)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setJobs(data || []);
+      
+      // Transform the data to include application count
+      const jobsWithCounts = (data || []).map(job => ({
+        ...job,
+        application_count: job.applications?.[0]?.count || 0
+      }));
+      
+      setJobs(jobsWithCounts);
     } catch (error) {
       console.error('Error loading jobs:', error);
       toast({
