@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar, Mail, Phone, FileText, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminApplications = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -29,23 +30,53 @@ const AdminApplications = () => {
     }
     setIsLoggedIn(true);
 
-    // Load applications and jobs
-    const storedApplications = JSON.parse(localStorage.getItem('applications') || '[]');
-    const storedJobs = JSON.parse(localStorage.getItem('adminJobs') || '[]');
-    
-    // Enhance applications with job details
-    const enhancedApplications = storedApplications.map((app: any) => {
-      const job = storedJobs.find((j: any) => j.id === app.jobId);
-      return {
-        ...app,
-        jobTitle: job?.title || 'Unknown Job',
-        jobDepartment: job?.department || 'Unknown Department'
-      };
-    });
-    
-    setApplications(enhancedApplications);
-    setJobs(storedJobs);
+    // Load applications and jobs from Supabase
+    loadApplicationsAndJobs();
   }, [navigate]);
+
+  const loadApplicationsAndJobs = async () => {
+    try {
+      // Load applications with job details
+      const { data: applicationsData, error: appsError } = await supabase
+        .from('applications')
+        .select(`
+          *,
+          jobs:job_id (
+            title,
+            department
+          )
+        `);
+
+      if (appsError) throw appsError;
+
+      // Load all jobs for filter dropdown
+      const { data: jobsData, error: jobsError } = await supabase
+        .from('jobs')
+        .select('*');
+
+      if (jobsError) throw jobsError;
+
+      // Format applications with job details
+      const enhancedApplications = applicationsData?.map((app: any) => ({
+        ...app,
+        jobTitle: app.jobs?.title || 'Unknown Job',
+        jobDepartment: app.jobs?.department || 'Unknown Department',
+        jobId: app.job_id,
+        fullName: app.full_name,
+        appliedAt: app.applied_at
+      })) || [];
+
+      setApplications(enhancedApplications);
+      setJobs(jobsData || []);
+    } catch (error) {
+      console.error('Error loading applications:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load applications',
+        variant: 'destructive'
+      });
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('isAdminLoggedIn');
@@ -58,18 +89,33 @@ const AdminApplications = () => {
     setIsDetailModalOpen(true);
   };
 
-  const handleStatusUpdate = (applicationId: string, newStatus: string) => {
-    const updatedApplications = applications.map(app =>
-      app.id === applicationId ? { ...app, status: newStatus } : app
-    );
-    
-    setApplications(updatedApplications);
-    localStorage.setItem('applications', JSON.stringify(updatedApplications));
-    
-    toast({
-      title: 'Status Updated',
-      description: `Application status changed to ${newStatus}`
-    });
+  const handleStatusUpdate = async (applicationId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .update({ status: newStatus })
+        .eq('id', applicationId);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedApplications = applications.map(app =>
+        app.id === applicationId ? { ...app, status: newStatus } : app
+      );
+      setApplications(updatedApplications);
+      
+      toast({
+        title: 'Status Updated',
+        description: `Application status changed to ${newStatus}`
+      });
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update application status',
+        variant: 'destructive'
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {

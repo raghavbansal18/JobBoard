@@ -101,52 +101,66 @@ const Jobs = () => {
   };
 
   const handleApplicationSubmit = async (applicationData: any) => {
-    // Mock validation - replace with actual backend logic
-    const userEmail = applicationData.email;
-    
-    // Check if user has already applied for this job
-    const hasApplied = appliedJobs.includes(applicationData.jobId);
-    if (hasApplied) {
-      throw new Error('You have already applied for this job');
+    try {
+      // Check if user has already applied for this job in database
+      const { data: existingApplication, error: checkError } = await supabase
+        .from('applications')
+        .select('id')
+        .eq('job_id', applicationData.jobId)
+        .eq('email', applicationData.email)
+        .maybeSingle();
+
+      if (checkError) {
+        throw checkError;
+      }
+
+      if (existingApplication) {
+        throw new Error('You have already applied for this job');
+      }
+
+      // Check daily application limit
+      const today = new Date().toISOString().split('T')[0];
+      const { count: todayCount, error: countError } = await supabase
+        .from('applications')
+        .select('*', { count: 'exact', head: true })
+        .eq('email', applicationData.email)
+        .gte('applied_at', `${today}T00:00:00.000Z`)
+        .lt('applied_at', `${today}T23:59:59.999Z`);
+
+      if (countError) throw countError;
+
+      if ((todayCount || 0) >= 5) {
+        throw new Error('You cannot apply for more than 5 jobs within 24 hours');
+      }
+
+      // Save application to database
+      const { data: newApplication, error: insertError } = await supabase
+        .from('applications')
+        .insert({
+          job_id: applicationData.jobId,
+          full_name: applicationData.fullName,
+          email: applicationData.email,
+          phone: applicationData.phone,
+          resume_url: applicationData.resumeUrl || null,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Update applied jobs in localStorage for quick UI feedback
+      const updatedAppliedJobs = [...appliedJobs, applicationData.jobId];
+      setAppliedJobs(updatedAppliedJobs);
+      localStorage.setItem('appliedJobs', JSON.stringify(updatedAppliedJobs));
+
+      // Reload jobs to get updated application count from database
+      await loadJobs();
+
+    } catch (error: any) {
+      console.error('Error submitting application:', error);
+      throw error;
     }
-
-    // Check daily application limit (mock implementation)
-    const today = new Date().toDateString();
-    const todayApplications = JSON.parse(localStorage.getItem(`applications_${today}`) || '[]');
-    
-    if (todayApplications.length >= 5) {
-      throw new Error('You cannot apply for more than 5 jobs within 24 hours');
-    }
-
-    // Mock: Save application
-    const newApplication = {
-      ...applicationData,
-      id: Date.now().toString(),
-      appliedAt: new Date().toISOString()
-    };
-
-    // Save to localStorage (mock backend)
-    const applications = JSON.parse(localStorage.getItem('applications') || '[]');
-    applications.push(newApplication);
-    localStorage.setItem('applications', JSON.stringify(applications));
-
-    // Update today's applications
-    todayApplications.push(newApplication.id);
-    localStorage.setItem(`applications_${today}`, JSON.stringify(todayApplications));
-
-    // Update applied jobs
-    const updatedAppliedJobs = [...appliedJobs, applicationData.jobId];
-    setAppliedJobs(updatedAppliedJobs);
-    localStorage.setItem('appliedJobs', JSON.stringify(updatedAppliedJobs));
-
-    // Update job application count
-    setJobs(prevJobs =>
-      prevJobs.map(job =>
-        job.id === applicationData.jobId
-          ? { ...job, application_count: (job.application_count || 0) + 1 }
-          : job
-      )
-    );
   };
 
   return (
