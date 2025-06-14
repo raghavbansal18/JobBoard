@@ -6,44 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-// Mock data - replace with Supabase data
-const mockJobs = [
-  {
-    id: '1',
-    title: 'Senior Frontend Developer',
-    department: 'Engineering',
-    location: 'San Francisco, CA',
-    description: 'We are looking for a Senior Frontend Developer to join our dynamic team. You will be responsible for developing user-facing features using React, TypeScript, and modern web technologies.',
-    posting_date: '2024-01-15',
-    application_count: 3,
-    max_applications: 5
-  },
-  {
-    id: '2',
-    title: 'Product Manager',
-    department: 'Product',
-    location: 'New York, NY',
-    description: 'Join our product team to drive product strategy and roadmap. You will work closely with engineering, design, and business stakeholders to deliver exceptional user experiences.',
-    posting_date: '2024-01-14',
-    application_count: 5,
-    max_applications: 5
-  },
-  {
-    id: '3',
-    title: 'UX Designer',
-    department: 'Design',
-    location: 'Remote',
-    description: 'We are seeking a talented UX Designer to create intuitive and engaging user experiences. You will be involved in the entire design process from research to final implementation.',
-    posting_date: '2024-01-13',
-    application_count: 1,
-    max_applications: 5
-  }
-];
+import { supabase } from '@/integrations/supabase/client';
 
 const Jobs = () => {
-  const [jobs, setJobs] = useState(mockJobs);
-  const [filteredJobs, setFilteredJobs] = useState(mockJobs);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
   const [selectedJob, setSelectedJob] = useState(null);
   const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,7 +29,47 @@ const Jobs = () => {
     if (stored) {
       setAppliedJobs(JSON.parse(stored));
     }
+
+    // Load jobs from Supabase
+    loadJobs();
   }, []);
+
+  const loadJobs = async () => {
+    try {
+      const { data: jobs, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      // Get application counts for each job
+      const jobsWithCount = await Promise.all(
+        (jobs || []).map(async (job) => {
+          const { count, error: countError } = await supabase
+            .from('applications')
+            .select('*', { count: 'exact', head: true })
+            .eq('job_id', job.id);
+
+          if (countError) console.error('Error counting applications:', countError);
+
+          return {
+            ...job,
+            application_count: count || 0
+          };
+        })
+      );
+
+      setJobs(jobsWithCount);
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load jobs',
+        variant: 'destructive'
+      });
+    }
+  };
 
   useEffect(() => {
     let filtered = jobs;

@@ -9,7 +9,83 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          applied_at: string | null
+          email: string
+          full_name: string
+          id: string
+          job_id: string | null
+          phone: string
+          resume_url: string | null
+          status: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          job_id?: string | null
+          phone: string
+          resume_url?: string | null
+          status?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          job_id?: string | null
+          phone?: string
+          resume_url?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          created_at: string | null
+          department: string
+          description: string
+          id: string
+          is_active: boolean | null
+          location: string
+          max_applications: number | null
+          posting_date: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          description: string
+          id?: string
+          is_active?: boolean | null
+          location: string
+          max_applications?: number | null
+          posting_date?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          description?: string
+          id?: string
+          is_active?: boolean | null
+          location?: string
+          max_applications?: number | null
+          posting_date?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

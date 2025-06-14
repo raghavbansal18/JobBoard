@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Switch } from '@/components/ui/switch';
 import { Plus, Edit, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminJobs = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -36,10 +37,28 @@ const AdminJobs = () => {
     }
     setIsLoggedIn(true);
 
-    // Load jobs from localStorage
-    const storedJobs = JSON.parse(localStorage.getItem('adminJobs') || '[]');
-    setJobs(storedJobs);
+    // Load jobs from Supabase
+    loadJobs();
   }, [navigate]);
+
+  const loadJobs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setJobs(data || []);
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load jobs',
+        variant: 'destructive'
+      });
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('isAdminLoggedIn');
@@ -83,7 +102,7 @@ const AdminJobs = () => {
     setIsCreateModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.title.trim() || !formData.department.trim() || !formData.location.trim() || !formData.description.trim()) {
@@ -95,49 +114,71 @@ const AdminJobs = () => {
       return;
     }
 
-    const jobData = {
-      ...formData,
-      id: editingJob ? editingJob.id : Date.now().toString(),
-      posting_date: editingJob ? editingJob.posting_date : new Date().toISOString(),
-      is_active: editingJob ? editingJob.is_active : true,
-      created_at: editingJob ? editingJob.created_at : new Date().toISOString(),
-      application_count: editingJob ? editingJob.application_count : 0
-    };
+    try {
+      if (editingJob) {
+        const { error } = await supabase
+          .from('jobs')
+          .update(formData)
+          .eq('id', editingJob.id);
 
-    let updatedJobs;
-    if (editingJob) {
-      updatedJobs = jobs.map(job => job.id === editingJob.id ? jobData : job);
+        if (error) throw error;
+
+        toast({
+          title: 'Job Updated',
+          description: 'Job posting has been updated successfully'
+        });
+      } else {
+        const { error } = await supabase
+          .from('jobs')
+          .insert([formData]);
+
+        if (error) throw error;
+
+        toast({
+          title: 'Job Created',
+          description: 'New job posting has been created successfully'
+        });
+      }
+
+      await loadJobs();
+      setIsCreateModalOpen(false);
+      resetForm();
+      setEditingJob(null);
+    } catch (error) {
+      console.error('Error saving job:', error);
       toast({
-        title: 'Job Updated',
-        description: 'Job posting has been updated successfully'
-      });
-    } else {
-      updatedJobs = [...jobs, jobData];
-      toast({
-        title: 'Job Created',
-        description: 'New job posting has been created successfully'
+        title: 'Error',
+        description: 'Failed to save job posting',
+        variant: 'destructive'
       });
     }
-
-    setJobs(updatedJobs);
-    localStorage.setItem('adminJobs', JSON.stringify(updatedJobs));
-    setIsCreateModalOpen(false);
-    resetForm();
-    setEditingJob(null);
   };
 
-  const toggleJobStatus = (jobId: string) => {
-    const updatedJobs = jobs.map(job =>
-      job.id === jobId ? { ...job, is_active: !job.is_active } : job
-    );
-    setJobs(updatedJobs);
-    localStorage.setItem('adminJobs', JSON.stringify(updatedJobs));
-    
-    const job = updatedJobs.find(j => j.id === jobId);
-    toast({
-      title: 'Job Status Updated',
-      description: `Job has been ${job?.is_active ? 'activated' : 'deactivated'}`
-    });
+  const toggleJobStatus = async (jobId: string) => {
+    try {
+      const job = jobs.find(j => j.id === jobId);
+      if (!job) return;
+
+      const { error } = await supabase
+        .from('jobs')
+        .update({ is_active: !job.is_active })
+        .eq('id', jobId);
+
+      if (error) throw error;
+
+      await loadJobs();
+      toast({
+        title: 'Job Status Updated',
+        description: `Job has been ${!job.is_active ? 'activated' : 'deactivated'}`
+      });
+    } catch (error) {
+      console.error('Error updating job status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update job status',
+        variant: 'destructive'
+      });
+    }
   };
 
   if (!isLoggedIn) {
