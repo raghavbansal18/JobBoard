@@ -43,21 +43,30 @@ const AdminJobs = () => {
 
   const loadJobs = async () => {
     try {
-      const { data, error } = await supabase
+      // First get all jobs
+      const { data: jobsData, error: jobsError } = await supabase
         .from('jobs')
-        .select(`
-          *,
-          applications:applications(count)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      
-      // Transform the data to include application count
-      const jobsWithCounts = (data || []).map(job => ({
-        ...job,
-        application_count: job.applications?.[0]?.count || 0
-      }));
+      if (jobsError) throw jobsError;
+
+      // Then get application counts for each job
+      const jobsWithCounts = await Promise.all(
+        (jobsData || []).map(async (job) => {
+          const { count, error } = await supabase
+            .from('applications')
+            .select('*', { count: 'exact', head: true })
+            .eq('job_id', job.id);
+
+          if (error) {
+            console.error('Error counting applications for job:', job.id, error);
+            return { ...job, application_count: 0 };
+          }
+
+          return { ...job, application_count: count || 0 };
+        })
+      );
       
       setJobs(jobsWithCounts);
     } catch (error) {
