@@ -4,6 +4,8 @@ import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, Briefcase, FileText, TrendingUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const AdminDashboard = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -13,7 +15,10 @@ const AdminDashboard = () => {
     totalApplications: 0,
     pendingApplications: 0
   });
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check if admin is logged in
@@ -24,17 +29,72 @@ const AdminDashboard = () => {
     }
     setIsLoggedIn(true);
 
-    // Load statistics (mock data)
-    const jobs = JSON.parse(localStorage.getItem('adminJobs') || '[]');
-    const applications = JSON.parse(localStorage.getItem('applications') || '[]');
-    
-    setStats({
-      totalJobs: jobs.length,
-      activeJobs: jobs.filter((job: any) => job.is_active).length,
-      totalApplications: applications.length,
-      pendingApplications: applications.filter((app: any) => app.status === 'pending').length
-    });
+    // Load statistics from Supabase
+    loadDashboardData();
   }, [navigate]);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch jobs statistics
+      const { count: totalJobsCount, error: jobsError } = await supabase
+        .from('jobs')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: activeJobsCount, error: activeJobsError } = await supabase
+        .from('jobs')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+
+      // Fetch applications statistics
+      const { count: totalApplicationsCount, error: applicationsError } = await supabase
+        .from('applications')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: pendingApplicationsCount, error: pendingError } = await supabase
+        .from('applications')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      // Fetch recent applications for activity feed
+      const { data: recentApps, error: recentError } = await supabase
+        .from('applications')
+        .select(`
+          *,
+          jobs:job_id (
+            title
+          )
+        `)
+        .order('applied_at', { ascending: false })
+        .limit(5);
+
+      if (jobsError || activeJobsError || applicationsError || pendingError) {
+        throw new Error('Failed to load statistics');
+      }
+
+      setStats({
+        totalJobs: totalJobsCount || 0,
+        activeJobs: activeJobsCount || 0,
+        totalApplications: totalApplicationsCount || 0,
+        pendingApplications: pendingApplicationsCount || 0
+      });
+
+      if (!recentError && recentApps) {
+        setRecentActivities(recentApps);
+      }
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load dashboard statistics',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('isAdminLoggedIn');
@@ -97,7 +157,9 @@ const AdminDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
+                <div className="text-2xl font-bold">
+                  {loading ? '...' : stat.value}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -110,18 +172,22 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">New application received</span>
-                  <Badge variant="secondary">2 min ago</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Job posting created</span>
-                  <Badge variant="secondary">1 hour ago</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Application reviewed</span>
-                  <Badge variant="secondary">3 hours ago</Badge>
-                </div>
+                {loading ? (
+                  <div className="text-sm text-muted-foreground">Loading recent activity...</div>
+                ) : recentActivities.length > 0 ? (
+                  recentActivities.slice(0, 3).map((activity, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <span className="text-sm">
+                        New application for {activity.jobs?.title || 'Unknown Job'}
+                      </span>
+                      <Badge variant="secondary">
+                        {new Date(activity.applied_at).toLocaleDateString()}
+                      </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground">No recent activity</div>
+                )}
               </div>
             </CardContent>
           </Card>
