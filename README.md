@@ -7,8 +7,6 @@ A comprehensive job board application built with React, TypeScript, and Supabase
 ### For Applicants
 - View available job listings with filters (search, department, location)
 - Apply for jobs with personal information and resume upload
-- Protection against duplicate applications
-- Daily application limits (max 5 jobs per 24 hours)
 - Application status tracking
 
 ### For Administrators
@@ -105,11 +103,8 @@ A comprehensive job board application built with React, TypeScript, and Supabase
      FOR SELECT USING (true);
    ```
 
-4. **Connect to Supabase in Lovable**
-   - Click the green Supabase button in the top right of your Lovable interface
-   - Follow the connection setup process
 
-5. **Start the development server**
+4. **Start the development server**
    ```bash
    npm run dev
    ```
@@ -165,67 +160,10 @@ src/
 - Dashboard with application statistics
 - Secure authentication with hardcoded credentials
 
-## 🚀 Deployment
-
-To deploy this application:
-
-1. **Build the project**
-   ```bash
-   npm run build
-   ```
-
-2. **Deploy via Lovable**
-   - Click "Publish" in the Lovable interface
-   - Your app will be deployed with a Lovable subdomain
-
-3. **Custom Domain** (Premium feature)
-   - Go to Project > Settings > Domains
-   - Connect your custom domain
-
-## 🔄 Development Workflow
-
-1. **Local Development**
-   ```bash
-   npm run dev
-   ```
-
-2. **Type Checking**
-   ```bash
-   npm run type-check
-   ```
-
-3. **Linting**
-   ```bash
-   npm run lint
-   ```
-
 ## 📝 API Integration
 
 Once Supabase is connected, the application will automatically:
 - Store job postings in the database
-- Handle file uploads for resumes
 - Manage application data
 - Implement real-time updates
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 🆘 Support
-
-For support and questions:
-- Check the Lovable documentation: https://docs.lovable.dev/
-- Join the Lovable Discord community
-- Review the troubleshooting guide in the documentation
-
----
-
-**Note**: This application requires Supabase integration for full functionality. Connect your Supabase project through the Lovable interface to enable database operations, file uploads, and authentication.
